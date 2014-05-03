@@ -46,8 +46,11 @@ module Devise
 
               class_eval <<-URL_HELPERS, __FILE__, __LINE__ + 1
                 def #{method}(resource_or_scope, *args)
-                  scope = Devise::Mapping.find_scope!(resource_or_scope)
-                  _devise_route_context.send("#{action}\#{scope}_#{module_name}_#{path_or_url}", *args)
+                  mapping = Devise::Mapping.find_mapping!(resource_or_scope)
+                  scope = mapping.scope
+                  router_name = mapping.router_name
+                  context = router_name ? send(router_name) : _devise_route_context
+                  context.send("#{action}\#{scope}_#{module_name}_#{path_or_url}", *args)
                 end
               URL_HELPERS
             end

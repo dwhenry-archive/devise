@@ -1,4 +1,12 @@
 module Devise
+  class RoutingDetails
+    attr_reader :scope, :router_name
+
+    def initialize(mapping)
+      @scope = mapping.name
+      @router_name = mapping.router_name
+    end
+  end
   # Responsible for handling devise mappings and routes configuration. Each
   # resource configured by devise_for in routes is actually creating a mapping
   # object. You can refer to devise_for in routes for usage options.
@@ -23,7 +31,8 @@ module Devise
   #
   class Mapping #:nodoc:
     attr_reader :singular, :scoped_path, :path, :controllers, :path_names,
-                :class_name, :sign_out_via, :format, :used_routes, :used_helpers, :failure_app
+                :class_name, :sign_out_via, :format, :used_routes, :used_helpers,
+                :failure_app, :router_name
 
     alias :name :singular
 
@@ -40,6 +49,23 @@ module Devise
       end
 
       raise "Could not find a valid mapping for #{obj.inspect}"
+    end
+
+    # Receives an object and find a mapping for it, then return the routing
+    # details associated with the mapping. If a scope cannot be found,
+    # raises an error.
+    def self.find_mapping!(obj)
+      case obj
+        when String, Symbol
+          scope = obj.to_sym
+          Devise.mappings.each_value { |m| return RoutingDetails.new(m) if m.name == scope }
+        when Class
+          Devise.mappings.each_value { |m| return RoutingDetails.new(m) if obj <= m.to }
+        else
+          Devise.mappings.each_value { |m| return RoutingDetails.new(m) if obj.is_a?(m.to) }
+      end
+
+      raise "Could not find a valid mapping for #{obj.inspect}" unless mapping
     end
 
     def self.find_by_path!(path, path_type=:fullpath)
@@ -59,6 +85,8 @@ module Devise
 
       @sign_out_via = options[:sign_out_via] || Devise.sign_out_via
       @format = options[:format]
+
+      @router_name = options[:router_name]
 
       default_failure_app(options)
       default_controllers(options)

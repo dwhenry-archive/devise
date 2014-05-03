@@ -101,10 +101,17 @@ module Devise
       # The scope root url to be used when they're signed in. By default, it first
       # tries to find a resource_root_path, otherwise it uses the root_path.
       def signed_in_root_path(resource_or_scope)
-        scope = Devise::Mapping.find_scope!(resource_or_scope)
+        mapping = Devise::Mapping.find_mapping!(resource_or_scope)
+        scope = mapping.scope
+        router_name = mapping.router_name
         home_path = "#{scope}_root_path"
-        if respond_to?(home_path, true)
-          send(home_path)
+
+        context = router_name ? send(router_name) : self
+
+        if context.respond_to?(home_path, true)
+          context.send(home_path)
+        elsif context.respond_to?(:root_path)
+          context.root_path
         elsif respond_to?(:root_path)
           root_path
         else
@@ -150,7 +157,9 @@ module Devise
       #
       # By default it is the root_path.
       def after_sign_out_path_for(resource_or_scope)
-        respond_to?(:root_path) ? root_path : "/"
+        router_name = Devise::Mapping.find_mapping!(resource_or_scope).router_name
+        context = router_name ? send(router_name) : self
+        context.respond_to?(:root_path) ? context.root_path : "/"
       end
 
       # Sign in a user and tries to redirect first to the stored location and
